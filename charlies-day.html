@@ -326,6 +326,23 @@
     font-size:0.95rem;
   }
 
+  /* locked / come-back-tomorrow screen */
+  .locked-sky{
+    font-size:56px;
+    display:inline-block;
+    animation: bounce 3s ease-in-out infinite;
+  }
+  .locked-note{
+    background:#F1ECFB;
+    border-radius:18px;
+    padding:14px 16px;
+    font-weight:600;
+    color:#6b5b73;
+    font-size:0.95rem;
+    margin:18px 0 6px;
+  }
+
+
   @media (prefers-reduced-motion: reduce){
     *{ animation-duration:0.001s !important; animation-iteration-count:1 !important; }
   }
@@ -354,8 +371,16 @@
 
   <div class="card" id="cardWrap">
 
+    <!-- SCENE LOCKED: ALREADY PLAYED TODAY -->
+    <section id="scene-locked" class="hidden">
+      <div class="locked-sky" id="secretMoon">🌙✨</div>
+      <h1>Charlie's Day</h1>
+      <p class="sub">Charlie already had her day today!</p>
+      <div class="locked-note">Come back tomorrow for a brand new day with Charlie 💤</div>
+    </section>
+
     <!-- SCENE 0: WAKE UP -->
-    <section id="scene-wake">
+    <section id="scene-wake" class="hidden">
       <div class="charlie">👧</div>
       <h1>Charlie's Day</h1>
       <p class="sub">The sun is up and it's time to start the day!</p>
@@ -575,11 +600,65 @@
     goTo('scene-final');
     spawnHearts();
     burstConfetti();
+    savePlayedToday();
   }
   // override the "Say Goodnight" button target to also trigger final effects
   document.addEventListener('DOMContentLoaded', ()=>{
     const btn = document.querySelector('#scene-after-response .primary-btn');
     btn.setAttribute('onclick','goFinal()');
+  });
+
+  const STORAGE_KEY = 'charliesDayLastPlayed';
+
+  function todayStr(){
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+
+  function savePlayedToday(){
+    try{ localStorage.setItem(STORAGE_KEY, todayStr()); }catch(e){}
+  }
+
+  function hasPlayedToday(){
+    try{ return localStorage.getItem(STORAGE_KEY) === todayStr(); }catch(e){ return false; }
+  }
+
+  function checkLock(){
+    document.querySelectorAll('.card > section').forEach(s=>s.classList.add('hidden'));
+    if(hasPlayedToday()){
+      document.getElementById('trail').classList.add('hidden');
+      goTo('scene-locked');
+    }else{
+      document.getElementById('trail').classList.remove('hidden');
+      setProgress(0);
+      goTo('scene-wake');
+    }
+  }
+
+  function parentReset(){
+    const sure = confirm("This lets Charlie play again today. Continue?");
+    if(sure){
+      try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
+      checkLock();
+    }
+  }
+
+  // secret gesture: tap the moon 5 times quickly to trigger parent reset
+  let secretTapCount = 0;
+  let secretTapTimer = null;
+  document.addEventListener('DOMContentLoaded', ()=>{
+    const moon = document.getElementById('secretMoon');
+    if(moon){
+      moon.addEventListener('click', ()=>{
+        secretTapCount++;
+        clearTimeout(secretTapTimer);
+        secretTapTimer = setTimeout(()=>{ secretTapCount = 0; }, 1200);
+        if(secretTapCount >= 5){
+          secretTapCount = 0;
+          parentReset();
+        }
+      });
+    }
   });
 
   function spawnHearts(){
@@ -611,11 +690,10 @@
   }
 
   function restart(){
-    setProgress(0);
-    goTo('scene-wake');
+    checkLock();
   }
 
-  setProgress(0);
+  checkLock();
 </script>
 
 </body>
